@@ -1,0 +1,67 @@
+name: Build AppManager Device Owner
+
+on:
+  push:
+    branches:
+      - appmanager-device-owner-build
+    paths:
+      - 'build_support/**'
+      - 'overlay/**'
+      - '.github/workflows/build-appmanager-device-owner.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout build harness
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+          cache: gradle
+
+      - name: Clone App Manager v4.1.1
+        run: |
+          git clone --depth 1 --branch v4.1.1 --recurse-submodules \
+            https://github.com/MuntashirAkon/AppManager.git AppManager
+
+      - name: Apply Device Owner and package-control extension
+        run: |
+          cp -a overlay/. AppManager/
+          python3 build_support/patch_manifest.py AppManager
+
+      - name: Show patch summary
+        working-directory: AppManager
+        run: git diff --stat && git diff --check
+
+      - name: Run unit tests
+        working-directory: AppManager
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build signed universal debug APK
+        working-directory: AppManager
+        run: ./gradlew packageDebugUniversalApk --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          find AppManager/app/build/outputs -type f -name '*.apk' -print
+          APK="$(find AppManager/app/build/outputs -type f \( -name '*universal*debug*.apk' -o -name '*debug*universal*.apk' \) | head -n 1)"
+          if [ -z "$APK" ]; then
+            APK="$(find AppManager/app/build/outputs -type f -name '*.apk' | head -n 1)"
+          fi
+          test -n "$APK"
+          cp "$APK" dist/AppManager-4.1.1-DeviceOwner-debug.apk
+          sha256sum dist/AppManager-4.1.1-DeviceOwner-debug.apk > dist/SHA256SUMS.txt
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppManager-4.1.1-DeviceOwner-debug
+          path: dist/
+          if-no-files-found: error
