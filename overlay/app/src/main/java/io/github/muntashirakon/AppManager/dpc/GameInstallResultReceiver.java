@@ -23,15 +23,14 @@ public final class GameInstallResultReceiver extends BroadcastReceiver {
 
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                @SuppressWarnings("deprecation")
-                Intent confirm = intent.getParcelableExtra(PackageInstaller.EXTRA_INTENT, Intent.class);
+                Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class);
                 if (confirm != null) {
                     confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(confirm);
                 }
             } else {
                 //noinspection deprecation
-                Intent confirm = intent.getParcelableExtra(PackageInstaller.EXTRA_INTENT);
+                Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
                 if (confirm != null) {
                     confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(confirm);
