@@ -11,4 +11,10 @@ public class DpcConstantsTest {
         assertEquals("io.github.muntashirakon.AppManager.action.GAME_INSTALL_RESULT",
                 GameInstallResultReceiver.ACTION_GAME_INSTALL_RESULT);
     }
+
+    @Test
+    public void gameResultExtrasAreStable() {
+        assertEquals("package_name", GameInstallResultReceiver.EXTRA_PACKAGE_NAME);
+        assertEquals("expected_signer", GameInstallResultReceiver.EXTRA_EXPECTED_SIGNER);
+    }
 }
