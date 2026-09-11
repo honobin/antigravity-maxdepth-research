@@ -16,14 +16,13 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout build harness
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: '21'
-          cache: gradle
 
       - name: Clone App Manager v4.1.1
         run: |
