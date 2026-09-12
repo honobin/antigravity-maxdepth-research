@@ -1,14 +1,37 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="dev.openai.clearowner.instrumentation">
-    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="36" />
+    package="io.github.muntashirakon.AppManager.debug"
+    android:versionCode="1000000"
+    android:versionName="4.1.1-DO-CLEAR">
+
+    <uses-sdk
+        android:minSdkVersion="21"
+        android:targetSdkVersion="36" />
+
     <application
         android:allowBackup="false"
         android:debuggable="true"
-        android:label="Clear AppManager Device Owner" />
-    <instrumentation
-        android:name="dev.openai.clearowner.ClearOwnerInstrumentation"
-        android:targetPackage="io.github.muntashirakon.AppManager.debug"
-        android:functionalTest="true"
-        android:handleProfiling="false"
-        android:label="Clear AppManager Device Owner" />
+        android:label="App Manager - Remove Device Owner"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name="io.github.muntashirakon.AppManager.dpc.PrivilegedAppManagerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name="io.github.muntashirakon.AppManager.dpc.AppManagerDeviceAdminReceiver"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_receiver" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>
