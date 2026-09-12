@@ -19,3 +19,10 @@ def test_helper_does_not_factory_reset_or_wipe_data():
     text = (ROOT / 'src/dev/openai/clearowner/ClearOwnerInstrumentation.java').read_text()
     forbidden = ['wipeData(', 'factoryReset', 'RecoverySystem.rebootWipeUserData']
     assert all(term not in text for term in forbidden)
+
+
+if __name__ == '__main__':
+    test_manifest_targets_exact_device_owner_package()
+    test_instrumentation_requires_current_device_owner_before_clear()
+    test_helper_does_not_factory_reset_or_wipe_data()
+    print('helper contract checks passed')
