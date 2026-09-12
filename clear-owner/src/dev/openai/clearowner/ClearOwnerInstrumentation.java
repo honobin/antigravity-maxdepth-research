@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.admin.DevicePolicyManager;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -78,7 +79,12 @@ public final class ClearOwnerInstrumentation extends Activity {
                 .setTitle("Remove Device Owner?")
                 .setMessage("This cannot be undone without provisioning Device Owner again. Some policies may remain until they are separately cleared or the device is reset.")
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Remove", (dialog, which) -> clearOwner())
+                .setPositiveButton("Remove", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        clearOwner();
+                    }
+                })
                 .show();
     }
 
