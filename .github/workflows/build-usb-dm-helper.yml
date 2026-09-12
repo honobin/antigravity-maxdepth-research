@@ -31,19 +31,34 @@ jobs:
           gradle-version: '8.13'
 
       - name: Ensure Android API 36
-        run: yes | sdkmanager 'platforms;android-36' 'build-tools;35.0.0' >/dev/null
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found under $SDK_ROOT"
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          yes | "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0' >/dev/null
 
       - name: Unit test and assemble debug APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
 
-      - name: Verify APK manifest contains dialer role components
+      - name: Verify APK manifest and signature
         run: |
+          set -e
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           APK=app/build/outputs/apk/debug/app-debug.apk
-          apkanalyzer manifest print "$APK" > /tmp/manifest.xml
+          APKANALYZER="$(find "$SDK_ROOT" -type f -name apkanalyzer -print -quit 2>/dev/null || true)"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -print 2>/dev/null | sort -V | tail -n1)"
+          test -n "$APKANALYZER"
+          test -n "$APKSIGNER"
+          "$APKANALYZER" manifest print "$APK" > /tmp/manifest.xml
           grep -q 'android.intent.action.DIAL' /tmp/manifest.xml
           grep -q 'android.telecom.InCallService' /tmp/manifest.xml
           grep -q 'android.permission.BIND_INCALL_SERVICE' /tmp/manifest.xml
           grep -q 'dev.usbdmhelper.MainActivity' /tmp/manifest.xml
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
 
       - name: Upload signed debug APK
         uses: actions/upload-artifact@v4
