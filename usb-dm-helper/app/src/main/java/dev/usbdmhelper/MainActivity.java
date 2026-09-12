@@ -2,10 +2,8 @@ package dev.usbdmhelper;
 
 import android.app.Activity;
 import android.app.role.RoleManager;
-import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
-import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
 import android.view.Gravity;
 import android.view.ViewGroup;
@@ -89,25 +87,23 @@ public final class MainActivity extends Activity {
     }
 
     private void requestDialerRole() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            RoleManager roleManager = getSystemService(RoleManager.class);
-            if (roleManager == null || !roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
-                setStatus("DIALER role is unavailable on this device.");
-                return;
-            }
-            if (roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
-                setStatus("This app is already the default dialer. You can send 0808 now.");
-                return;
-            }
-            startActivityForResult(
-                    roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER),
-                    REQUEST_DIALER_ROLE);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            setStatus("Android 10 or newer is required for this helper.");
             return;
         }
 
-        Intent intent = new Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER);
-        intent.putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE, getPackageName());
-        startActivityForResult(intent, REQUEST_DIALER_ROLE);
+        RoleManager roleManager = getSystemService(RoleManager.class);
+        if (roleManager == null || !roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+            setStatus("DIALER role is unavailable on this device.");
+            return;
+        }
+        if (roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
+            setStatus("This app is already the default dialer. You can send 0808 now.");
+            return;
+        }
+        startActivityForResult(
+                roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER),
+                REQUEST_DIALER_ROLE);
     }
 
     private void send0808() {
@@ -135,12 +131,11 @@ public final class MainActivity extends Activity {
     }
 
     private boolean isDefaultDialer() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            RoleManager roleManager = getSystemService(RoleManager.class);
-            return roleManager != null && roleManager.isRoleHeld(RoleManager.ROLE_DIALER);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return false;
         }
-        TelecomManager telecomManager = getSystemService(TelecomManager.class);
-        return telecomManager != null && getPackageName().equals(telecomManager.getDefaultDialerPackage());
+        RoleManager roleManager = getSystemService(RoleManager.class);
+        return roleManager != null && roleManager.isRoleHeld(RoleManager.ROLE_DIALER);
     }
 
     private void updateStatus() {
