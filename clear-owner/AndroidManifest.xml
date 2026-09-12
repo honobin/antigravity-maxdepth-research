@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.openai.clearowner.instrumentation">
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="36" />
+    <application
+        android:allowBackup="false"
+        android:debuggable="true"
+        android:label="Clear AppManager Device Owner" />
+    <instrumentation
+        android:name="dev.openai.clearowner.ClearOwnerInstrumentation"
+        android:targetPackage="io.github.muntashirakon.AppManager.debug"
+        android:functionalTest="true"
+        android:handleProfiling="false"
+        android:label="Clear AppManager Device Owner" />
+</manifest>
