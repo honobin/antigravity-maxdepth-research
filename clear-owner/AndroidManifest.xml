@@ -14,7 +14,7 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
-            android:name="io.github.muntashirakon.AppManager.dpc.PrivilegedAppManagerActivity"
+            android:name="io.github.muntashirakon.AppManager.dpc.ClearOwnerInstrumentation"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
