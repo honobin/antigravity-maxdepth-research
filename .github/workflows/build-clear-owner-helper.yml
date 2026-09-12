@@ -1,10 +1,115 @@
-name: Build clear-owner helper
+name: Build App Manager Device Owner remover
 
 on:
+  push:
+    branches:
+      - clear-appmanager-device-owner-20260912
   workflow_dispatch:
 
 jobs:
-  paused:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Build temporarily paused while converting helper into same-package App Manager update."
+      - uses: actions/checkout@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 16 platform and build tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Verify updater contract
+        run: python clear-owner/tests/test_helper_contract.py
+
+      - name: Build same-package App Manager update
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          ANDROID_JAR="$ANDROID_HOME/platforms/android-36/android.jar"
+          rm -rf clear-owner/build
+          mkdir -p clear-owner/build/classes clear-owner/build/dex
+
+          javac -source 8 -target 8 \
+            -bootclasspath "$ANDROID_JAR" \
+            -d clear-owner/build/classes \
+            clear-owner/src/dev/openai/clearowner/ClearOwnerInstrumentation.java \
+            clear-owner/src/io/github/muntashirakon/AppManager/dpc/AppManagerDeviceAdminReceiver.java
+
+          jar cf clear-owner/build/app-classes.jar -C clear-owner/build/classes .
+          "$BT/d8" \
+            --lib "$ANDROID_JAR" \
+            --min-api 21 \
+            --output clear-owner/build/dex \
+            clear-owner/build/app-classes.jar
+
+          "$BT/aapt2" compile \
+            --dir clear-owner/res \
+            -o clear-owner/build/resources.zip
+
+          "$BT/aapt2" link \
+            --manifest clear-owner/AndroidManifest.xml \
+            -I "$ANDROID_JAR" \
+            -o clear-owner/build/unsigned.apk \
+            clear-owner/build/resources.zip
+
+          (cd clear-owner/build/dex && zip -q -u ../unsigned.apk classes.dex)
+          "$BT/zipalign" -f 4 \
+            clear-owner/build/unsigned.apk \
+            clear-owner/build/aligned.apk
+
+      - name: Fetch App Manager public debug signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/MuntashirAkon/AppManager/master/app/dev_keystore.jks \
+            -o clear-owner/build/dev_keystore.jks
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/MuntashirAkon/AppManager/master/app/build.gradle \
+            -o clear-owner/build/upstream-build.gradle
+
+      - name: Sign with exact installed App Manager certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          GRADLE=clear-owner/build/upstream-build.gradle
+          STORE_PASS=$(sed -n "s/.*storePassword '\([^']*\)'.*/\1/p" "$GRADLE" | head -1)
+          KEY_PASS=$(sed -n "s/.*keyPassword '\([^']*\)'.*/\1/p" "$GRADLE" | head -1)
+          KEY_ALIAS=$(sed -n "s/.*keyAlias '\([^']*\)'.*/\1/p" "$GRADLE" | head -1)
+          test -n "$STORE_PASS"
+          test -n "$KEY_PASS"
+          test -n "$KEY_ALIAS"
+
+          OUT=clear-owner/build/AppManager-DeviceOwner-Clear-Update.apk
+          "$BT/apksigner" sign \
+            --ks clear-owner/build/dev_keystore.jks \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$STORE_PASS" \
+            --key-pass "pass:$KEY_PASS" \
+            --out "$OUT" \
+            clear-owner/build/aligned.apk
+
+          "$BT/apksigner" verify --verbose --print-certs "$OUT"
+
+          EXPECTED=9B11AF48E91EC12CEB9EB51FB0ACBB69BCE0FA77E13FCEBFF855C32AF5EF7C4B
+          ACTUAL=$("$BT/apksigner" verify --print-certs "$OUT" \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
+            | head -1 | tr '[:lower:]' '[:upper:]')
+          echo "Updater certificate SHA-256: $ACTUAL"
+          test "$ACTUAL" = "$EXPECTED"
+
+          unzip -p "$OUT" AndroidManifest.xml | strings -el | grep -F 'io.github.muntashirakon.AppManager.debug'
+          unzip -p "$OUT" AndroidManifest.xml | strings -el | grep -F 'io.github.muntashirakon.AppManager.dpc.AppManagerDeviceAdminReceiver'
+          unzip -p "$OUT" AndroidManifest.xml | strings -el | grep -F 'io.github.muntashirakon.AppManager.dpc.ClearOwnerInstrumentation'
+          sha256sum "$OUT"
+
+      - name: Upload same-package updater APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppManager-DeviceOwner-Clear-Update
+          path: clear-owner/build/AppManager-DeviceOwner-Clear-Update.apk
+          if-no-files-found: error
