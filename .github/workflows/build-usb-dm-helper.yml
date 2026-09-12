@@ -1,0 +1,53 @@
+name: Build USB DM Helper
+
+on:
+  push:
+    branches:
+      - build-usb-dm-helper-20260912
+    paths:
+      - 'usb-dm-helper/**'
+      - '.github/workflows/build-usb-dm-helper.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: usb-dm-helper
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Ensure Android API 36
+        run: yes | sdkmanager 'platforms;android-36' 'build-tools;35.0.0' >/dev/null
+
+      - name: Unit test and assemble debug APK
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Verify APK manifest contains dialer role components
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          apkanalyzer manifest print "$APK" > /tmp/manifest.xml
+          grep -q 'android.intent.action.DIAL' /tmp/manifest.xml
+          grep -q 'android.telecom.InCallService' /tmp/manifest.xml
+          grep -q 'android.permission.BIND_INCALL_SERVICE' /tmp/manifest.xml
+          grep -q 'dev.usbdmhelper.MainActivity' /tmp/manifest.xml
+
+      - name: Upload signed debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: usb-dm-helper-apk
+          path: usb-dm-helper/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
